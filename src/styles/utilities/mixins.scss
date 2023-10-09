@@ -1,0 +1,155 @@
+/* Apply styles map */
+@mixin apply-styles($styles: ()) {
+  @each $prop, $value in $styles {
+    #{$prop}: $value;
+  }
+}
+
+@mixin break-word {
+  word-break: break-all;
+
+  /* Non standard for WebKit */
+  word-break: break-word;
+  hyphens: auto;
+}
+
+@mixin ellipsis {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Positioning */
+@mixin absolute-y-center {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@mixin absolute-x-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@mixin absolute-xy-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@mixin absolute-fit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+@mixin background-cover {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+@mixin background-contain {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+}
+
+// svg-transform-loader is required for this mixin
+@mixin background-svg-icon-fill($icon-name, $fill-color) {
+  $base-color: str-slice(inspect($fill-color), 2);
+
+  background-image: unquote('url("#{$icons-path}/#{$icon-name}.svg?fill=%23#{$base-color}")');
+}
+
+/* Responsiveness */
+@mixin mobile {
+  @media screen and (max-width: $viewport-tablet - 1px) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media screen and (min-width: $viewport-tablet) {
+    @content;
+  }
+}
+
+@mixin tablet-only {
+  @media screen and (min-width: $viewport-tablet) and (max-width: $viewport-desktop - 1px) {
+    @content;
+  }
+}
+
+@mixin touch {
+  @media screen and (max-width: $viewport-desktop - 1px) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media screen and (min-width: $viewport-desktop) {
+    @content;
+  }
+}
+
+@mixin desktop-only {
+  @media screen and (min-width: $viewport-desktop) and (max-width: $viewport-widescreen - 1px) {
+    @content;
+  }
+}
+
+@mixin widescreen {
+  @media screen and (min-width: $viewport-widescreen) {
+    @content;
+  }
+}
+
+@mixin widescreen-only {
+  @media screen and (min-width: $viewport-widescreen) and (max-width: $viewport-ultrawide - 1px) {
+    @content;
+  }
+}
+
+@mixin ultrawide {
+  @media screen and (min-width: $viewport-ultrawide) {
+    @content;
+  }
+}
+
+@mixin custom-scroll-thin {
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar {
+    width: 4px;
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $color-grey;
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar:horizontal {
+    height: 4px;
+  }
+}
+
+@mixin high-contrast {
+  @media screen and (-ms-high-contrast: active),
+    screen and (forced-colors: active) {
+    @content;
+  }
+}
+
+@mixin high-contrast-mac {
+  @media screen and (prefers-contrast: more) {
+    @content;
+  }
+}

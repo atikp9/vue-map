@@ -1,5 +1,3 @@
-<i18n src="./AppMap.yml" lang="yaml"></i18n>
-
 <template>
   <div
     role="application"
@@ -156,7 +154,7 @@
           this.drawnItems = L.geoJSON(this.value);
           const bounds = this.drawnItems.getBounds();
           this.map.fitBounds(bounds);
-          this.drawnItems = parseCollection(this.drawnItems);
+          this.drawnItems = parseCollection(this.drawnItems as any);
         } else {
           this.setDefaultView();
         }
@@ -171,7 +169,7 @@
           className: this.isShapesInteractive ? INTERACTIVE_SHAPE_CLASS_NAME : '',
         });
 
-        this.map.addLayer(this.isMarkerClustering ? this.getClusteredShapes() : this.drawnItems);
+        this.map.addLayer(this.isMarkerClustering ? this.getClusteredShapes() : this.drawnItems as any);
       },
       setBaseControls() {
         if (!this.map) {
@@ -182,11 +180,11 @@
         const osm: L.TileLayer = new L.TileLayer(OSM_URL, this.tileLayerOptions);
 
         if (!this.isStatic) {
-          const zoom = L.control.zoom(ZOOM_OPTIONS);
-          zoom.addTo(this.map);
+          const zoom = L.control.zoom(ZOOM_OPTIONS).addTo(this.map as any);
+          zoom.addTo(this.map as L.Map);
         }
 
-        attribution.addTo(this.map);
+        attribution.addTo(this.map as L.Map);
         this.map.addLayer(osm);
       },
       setDefaultView() {
@@ -271,7 +269,7 @@
           position: ControlPosition.BOTTOMRIGHT,
           draw: this.drawOptions,
           edit: {
-            featureGroup: this.drawnItems,
+            featureGroup: this.drawnItems as any,
             edit: false,
             remove: false,
           },
@@ -468,7 +466,7 @@
         }
 
         this.editingLayer.editing.disable();
-        const layerType = getLayerType(this.editingLayer);
+        const layerType = getLayerType(this.editingLayer as any);
 
         if (this.map) {
           this.map.fire(L.Draw.Event.EDITED, { layerType, layer: this.editingLayer });
@@ -488,8 +486,8 @@
   });
 </script>
 
-<!-- <style lang="scss">
-  @import '~@/styles/utilities/all';
+<style lang="scss">
+  @import '@/styles/utilities/all';
 
   $leaflet-popup-height: 36px;
   $leaflet-popup-control-size: 20px;
@@ -500,10 +498,11 @@
   $leaflet-popup-arrow-width: spacing-unit(3);
   $leaflet-popup-arrow-bottom-polygon: - ($leaflet-popup-height + 9px);
   $leaflet-popup-arrow-bottom-marker: - ($leaflet-popup-height + 24px);
-
+  
   .app-map {
     position: relative;
     height: 512px;
+    width: 640px;
     font-family: $font-primary;
 
     /* toolbar */
@@ -1059,4 +1058,4 @@
       transition: stroke-dashoffset 0.3s ease-out, stroke-opacity 0.3s ease-in;
     }
   }
-</style> -->
+</style>
