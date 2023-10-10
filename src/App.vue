@@ -1,46 +1,40 @@
 <template>
-  <div class="wrapper">
-    <aside class="control-wrapper">
-      <h3>Map Controls</h3>
-      <div>Show Polygon Control:</div>
-
-      <input type="radio" id="yes" :value="true" v-model="showPolygonControl" />
-      <label for="yes">Yes</label>
-      
-      <input type="radio" id="no" :value="false" v-model="showPolygonControl" />
-      <label for="no">No</label>
-    </aside>
-    <AppMap 
-      class="map-wrapper"
-      v-model:has-draw="showPolygonControl"
-    />
+  <div class="main-wrapper">
+    <div class="menu">
+      <router-link to="/">Home</router-link>
+      <router-link to="/wkt">GridLayer</router-link>
+    </div>
+    <div class="map-wrapper">
+      <router-view />
+    </div>
   </div>
 </template>
+<style lang="scss" scoped>
+.main-wrapper {
+  height: 100vh;
+  width: 100vw;
 
-<script lang="ts">
-  import AppMap from './components/AppMap/AppMap.vue';
-  
-  export default {
-  components: {
-    AppMap
-  },
-  data() {
-    return {
-      showPolygonControl: true
+  .menu {
+    width: 100%;
+    background-color: #fff;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0px 10px;
+    box-shadow: 0 3px 10px rgba(29,36,48,.08);
+
+    .router-link-active {
+      text-decoration: underline;
+      font-weight: 700;  
     }
   }
-};
-</script>
-<style scoped lang="scss">
-.wrapper {
-  display: flex;
-  width: 100vw;
-  height: 100vh;
-  .control-wrapper {
-    width: 20%;
-  }
-  .map-wrapper {
-    width: 80%;
-  }
+}
+
+a {
+  text-decoration: none;
+  padding: 0;
+  margin: 0;
+  font-size: 1.5 rem;
+  margin: 0px 10px;
 }
 </style>

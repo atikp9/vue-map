@@ -21,6 +21,14 @@ export const MAP_READ_ONLY_OPTIONS: MapOptions = {
   tap: false,
 };
 
+export const MAP_FULLSCREEN_OPTIONS: MapOptions = {
+  fullscreenControl: true,
+  fullscreenControlOptions: {
+    position: ControlPosition.BOTTOMRIGHT,
+    title: undefined
+  }
+}
+
 export const ATTRIBUTION_OPTIONS: Control.AttributionOptions = {
   prefix: '',
   position: ControlPosition.BOTTOMLEFT,
@@ -49,13 +57,13 @@ export const POLYGON_SHAPE_OPTIONS: PathOptions = {
 export const DRAW_ELEMENT_OPTIONS: {[k in MapLayerType]: MapDrawElementOptions} = {
   [MapLayerType.MARKER]: {
     buttonClass: 'leaflet-draw-draw-marker',
-    tooltipTextKey: 'markerTooltip',
+    tooltipTextKey: 'Set marker',
     tooltipCancelTextKey: 'cancelMarker',
     popupClass: 'is-marker',
   },
   [MapLayerType.POLYGON]: {
     buttonClass: 'leaflet-draw-draw-polygon',
-    tooltipTextKey: 'polygonTooltip',
+    tooltipTextKey: 'Draw outline',
     tooltipCancelTextKey: 'cancelOutline',
     popupClass: 'is-polygon',
   },

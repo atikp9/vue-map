@@ -7,11 +7,7 @@
 
 <script lang="ts">
   import { defineComponent } from 'vue';
-  import L, {
-    type LeafletKeyboardEvent,
-    type TileLayerOptions,
-    type MapOptions,
-  } from 'leaflet';
+  import 'leaflet.fullscreen';
   import 'leaflet-draw';
   import 'leaflet.markercluster';
   import type { GeoJSON } from 'geojson';
@@ -30,7 +26,13 @@
     TILE_LAYER_OPTIONS,
     ZOOM_OPTIONS,
     MAP_READ_ONLY_OPTIONS,
+    MAP_FULLSCREEN_OPTIONS
   } from '@/common/constants/mapConstants';
+  import L, {
+    type LeafletKeyboardEvent,
+    type TileLayerOptions,
+    type MapOptions,
+  } from 'leaflet';
   import {
     type MapDrawControlElements,
     type MapDrawCreatedEvent, type MapDrawDeleteStartedEvent, type MapDrawEditEvent,
@@ -67,7 +69,7 @@
       value: {
         // TODO reinit map after change value
         // eslint-disable-next-line no-undef
-        type: Object as () => GeoJSON.GeometryCollection,
+        type: Object as () => GeoJSON.GeometryCollection | null,
         default: null,
       },
       hasDraw: {
@@ -86,6 +88,10 @@
         type: Boolean,
         default: false,
       },
+      isFullScreen: {
+        type: Boolean,
+        default: false
+      }
     },
     data(): IMapData {
       return {
@@ -96,7 +102,7 @@
         url: OSM_URL,
         tileLayerOptions: {
           ...TILE_LAYER_OPTIONS,
-          attribution: `&copy; <a href="${OSM_SITE_LINK}" target='_blank'>OpenStreetMap</a>${('legal')}`,
+          attribution: `&copy; <a href="${OSM_SITE_LINK}" target='_blank'>OpenStreetMap</a> Contributors`,
         },
         drawControlElementsMap: {
           [MapLayerType.MARKER]: {
@@ -145,13 +151,14 @@
         const mapOptions: MapOptions = {
           ...MAP_OPTIONS,
           ...(this.isStatic ? MAP_READ_ONLY_OPTIONS : {}),
+          ...(this.isFullScreen ? MAP_FULLSCREEN_OPTIONS : {})
         };
 
         this.map = L.map(this.$el as HTMLElement, mapOptions);
         this.setBaseControls();
 
         if (this.value) {
-          this.drawnItems = L.geoJSON(this.value);
+          this.drawnItems = L.geoJSON(this.value, {style: this.getStyle});
           const bounds = this.drawnItems.getBounds();
           this.map.fitBounds(bounds);
           this.drawnItems = parseCollection(this.drawnItems as any);
@@ -186,6 +193,9 @@
 
         attribution.addTo(this.map as L.Map);
         this.map.addLayer(osm);
+        osm.on("load", () => {
+          this.$emit('is-map-loaded', true);
+        })
       },
       setDefaultView() {
         if (!this.map) {
@@ -482,6 +492,26 @@
         const polygonHandler = L.toolbar._toolbars.draw._activeMode.handler;
         polygonHandler.completeShape();
       },
+      getColor(area :number) {
+        return area> 64 ? 'yellow' :
+           area> 32 ? 'violet' :
+           area> 16 ? 'indigo' :
+           area> 8  ? 'orange' :
+           area> 4  ? 'yellow' :
+           area> 2  ? 'red' :
+           area> 1  ? 'green' :
+           '#FFEDA0';
+      },
+      getStyle(feature: GeoJSON.Feature | any) {
+        return {
+          fillColor: this.getColor(feature.properties?.Flaeche),
+          weight: 2,
+          opacity: 1,
+          color: 'white',
+          dashArray: '3',
+          fillOpacity: 0.7
+        };
+      },
     },
   });
 </script>
@@ -724,7 +754,7 @@
 
       .leaflet-popup-content-wrapper {
         position: absolute;
-        background: $color-grey-darker;
+        background: $color-white;;
         bottom: calc(150%);
         color: $color-white;
         border-radius: $border-radius;
@@ -764,7 +794,7 @@
         margin: 0;
         padding: 0;
         border-top: 0;
-        border-bottom: $leaflet-popup-arrow-height solid $color-grey-darker;
+        border-bottom: $leaflet-popup-arrow-height solid $color-white;
         border-left: $leaflet-popup-arrow-width / 2 solid transparent;
         border-right: $leaflet-popup-arrow-width / 2 solid transparent;
         box-shadow: none;
@@ -926,6 +956,43 @@
       }
     }
 
+    .leaflet-control-zoom-fullscreen {
+      border-bottom-left-radius: $border-radius;
+      border-bottom-right-radius: $border-radius;
+
+      &:hover {
+        background-color: $color-white;
+
+        &::before {
+          @include background-svg-icon-fill('fullscreen', $color-primary);
+        }
+      }
+
+      &::before {
+        @include background-svg-icon-fill('fullscreen', $color-grey-darker);
+
+        background-size: contain;
+        transition: background-image $transition-duration;
+      }
+
+      @include high-contrast {
+        &::before {
+          @include background-svg-icon-fill('fullscreen', $color-white);
+        }
+
+        &:hover {
+          background-color: $color-white;
+
+          &::before {
+            @include background-svg-icon-fill('fullscreen', $color-grey);
+          }
+        }
+
+        &:focus {
+          outline: 2px solid $color-primary;
+        }
+      }
+    }
     .leaflet-draw-tooltip {
       display: none;
     }
