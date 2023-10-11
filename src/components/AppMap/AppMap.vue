@@ -12,15 +12,12 @@
   import 'leaflet.markercluster';
   import type { GeoJSON } from 'geojson';
   import {
-    addTooltipToElement,
-    getDrawOptions,
     getLayerType,
     parseCollection,
   } from '@/common/utils/MapUtils';
   import {
     ATTRIBUTION_OPTIONS,
     ControlPosition,
-    DRAW_ELEMENT_OPTIONS,
     MAP_OPTIONS,
     POLYGON_SHAPE_OPTIONS,
     TILE_LAYER_OPTIONS,
@@ -35,13 +32,13 @@
   } from 'leaflet';
   import {
     type MapDrawControlElements,
-    type MapDrawCreatedEvent, type MapDrawDeleteStartedEvent, type MapDrawEditEvent,
-    type MapLeafletEvent,
     MapLayerType,
     type MapLayer,
   } from '@/common/types/MapTypes';
   import 'leaflet/dist/leaflet.css';
   import 'leaflet-draw/dist/leaflet.draw.css';
+  import '@geoman-io/leaflet-geoman-free';  
+  import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'; 
 
   interface IMapData {
     map: L.Map | null;
@@ -53,16 +50,12 @@
     drawControlElementsMap: { [k in MapLayerType]: MapDrawControlElements };
     isPolygonDrawingActive: boolean;
     currentSearchString: string;
+    layerGroup: L.LayerGroup;
   }
 
-  enum PopupAction {
-    EDIT = 'EDIT',
-    DELETE = 'DELETE'
-  }
-
-  const OSM_URL = 'https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png';
-  const OSM_SITE_LINK = 'https://www.openstreetmap.de/';
+  const OSM_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
   const INTERACTIVE_SHAPE_CLASS_NAME = 'interactive-shape';
+  const ATTRIBUTION_TEXT = "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ";
 
   export default defineComponent({
     props: {
@@ -99,10 +92,11 @@
         editingLayer: null,
         drawnItems: new L.FeatureGroup(),
         searchTempItem: new L.FeatureGroup(),
+        layerGroup: new L.LayerGroup(),
         url: OSM_URL,
         tileLayerOptions: {
           ...TILE_LAYER_OPTIONS,
-          attribution: `&copy; <a href="${OSM_SITE_LINK}" target='_blank'>OpenStreetMap</a> Contributors`,
+          attribution: ATTRIBUTION_TEXT,
         },
         drawControlElementsMap: {
           [MapLayerType.MARKER]: {
@@ -118,25 +112,6 @@
         currentSearchString: '',
       };
     },
-    computed: {
-      drawOptions(): L.Control.DrawOptions {
-        return getDrawOptions(this.isShapesInteractive ? INTERACTIVE_SHAPE_CLASS_NAME : '');
-      },
-      markerClass(): string {
-        return this.isShapesInteractive
-          ? `map-marker ${INTERACTIVE_SHAPE_CLASS_NAME}`
-          : 'map-marker';
-      },
-      markerIcon(): L.DivIcon {
-        const { options } = L.Icon.Default.prototype;
-
-        return L.divIcon({
-          ...options,
-          shadowSize: [0, 0],
-          className: this.markerClass,
-        });
-      },
-    },
     mounted() {
       this.$nextTick(this.initMap);
     },
@@ -146,8 +121,6 @@
           return;
         }
 
-        L.Marker.prototype.options.icon = this.markerIcon;
-
         const mapOptions: MapOptions = {
           ...MAP_OPTIONS,
           ...(this.isStatic ? MAP_READ_ONLY_OPTIONS : {}),
@@ -156,9 +129,9 @@
 
         this.map = L.map(this.$el as HTMLElement, mapOptions);
         this.setBaseControls();
-
+        
         if (this.value) {
-          this.drawnItems = L.geoJSON(this.value, {style: this.getStyle});
+          this.drawnItems = L.geoJSON(this.value, { pmIgnore: true});
           const bounds = this.drawnItems.getBounds();
           this.map.fitBounds(bounds);
           this.drawnItems = parseCollection(this.drawnItems as any);
@@ -231,193 +204,207 @@
           return;
         }
 
-        // override default draw marker icon
-        L.Draw.Marker.prototype.setOptions({
-          icon: this.markerIcon,
-        });
-
-        this.extendDrawControlHandler();
-
-        const drawToolbar = this.getDrawToolbar();
-
-        this.map.addControl(drawToolbar);
-        this.setDrawElementOptions(MapLayerType.MARKER);
-        this.setDrawElementOptions(MapLayerType.POLYGON);
-        this.drawnItems.getLayers().forEach((layer) => {
-          this.bindActionPopupToLayer(layer as MapLayer);
-        });
+        this.getDrawToolbar();
         this.addHookHandlers();
       },
-      extendDrawControlHandler() {
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
-        const mapComponent = this;
-        // override leaflet method
-        L.Draw.Feature.include({
-          enable() {
-            if (mapComponent.editingLayer) {
-              mapComponent.finishLayerEditing();
-              return;
-            }
+      // extendDrawControlHandler() {
+      //   // eslint-disable-next-line @typescript-eslint/no-this-alias
+      //   const mapComponent = this;
+      //   // override leaflet method
+      //   L.Draw.Feature.include({
+      //     enable() {
+      //       if (mapComponent.editingLayer) {
+      //         mapComponent.finishLayerEditing();
+      //         return;
+      //       }
 
-            // eslint-disable-next-line no-underscore-dangle
-            if (this._enabled) {
-              // eslint-disable-next-line no-underscore-dangle
-              this._map.fire('draw:canceled', { layerType: this.type });
-              this.disable();
-              return;
-            }
+      //       // eslint-disable-next-line no-underscore-dangle
+      //       if (this._enabled) {
+      //         // eslint-disable-next-line no-underscore-dangle
+      //         this._map.fire('draw:canceled', { layerType: this.type });
+      //         this.disable();
+      //         return;
+      //       }
 
-            L.Handler.prototype.enable.call(this);
-            this.fire('enabled', { handler: this.type });
-            // eslint-disable-next-line no-underscore-dangle
-            this._map.fire(L.Draw.Event.DRAWSTART, { layerType: this.type });
-          },
-        });
-      },
+      //       L.Handler.prototype.enable.call(this);
+      //       this.fire('enabled', { handler: this.type });
+      //       // eslint-disable-next-line no-underscore-dangle
+      //       this._map.fire(L.Draw.Event.DRAWSTART, { layerType: this.type });
+      //     },
+      //   });
+      // },
       getDrawToolbar() {
-        return new L.Control.Draw({
-          position: ControlPosition.BOTTOMRIGHT,
-          draw: this.drawOptions,
-          edit: {
-            featureGroup: this.drawnItems as any,
-            edit: false,
-            remove: false,
-          },
-        });
-      },
-      setDrawElementOptions(layerType: MapLayerType) {
-        const element = this.drawControlElementsMap[layerType];
-        const { buttonClass, tooltipTextKey } = DRAW_ELEMENT_OPTIONS[layerType];
-
-        element.button = document.querySelector(`.${buttonClass}`);
-        element.tooltipContent = addTooltipToElement(element.button, String((tooltipTextKey)));
-      },
-      bindActionPopupToLayer(layer: MapLayer, actions: PopupAction[] = [PopupAction.EDIT, PopupAction.DELETE]) {
-        const layerType = getLayerType(layer);
-        const isMultiPolygon = layer.toGeoJSON().geometry.type === 'MultiPolygon';
-        const buttonContainer = document.createElement('div');
-        const buttons = [];
-
-        if (actions.indexOf(PopupAction.DELETE) > -1) {
-          buttons.push(this.makePopupDeleteButton(layer, layerType));
-        }
-
-        if (actions.indexOf(PopupAction.EDIT) > -1 && !isMultiPolygon) {
-          buttons.push(this.makePopupEditButton(layer, layerType));
-        }
-
-        buttonContainer.className = 'leaflet-popup-control-container';
-        buttons.forEach((button) => {
-          buttonContainer.appendChild(button);
-        });
-
-        const { popupClass } = DRAW_ELEMENT_OPTIONS[layerType];
-
-        layer.bindPopup(buttonContainer, { closeButton: false, closeOnClick: true, className: popupClass });
-      },
-      makePopupDeleteButton(layer: MapLayer, layerType: MapLayerType) {
-        const buttonRemove = document.createElement('div');
-
-        buttonRemove.className = 'leaflet-popup-control is-delete';
-        buttonRemove.addEventListener('click', () => {
-          if (this.map) {
-            this.map.fire(L.Draw.Event.DELETESTART, { layer, layerType });
-          }
-        });
-
-        return buttonRemove;
-      },
-      makePopupEditButton(layer: MapLayer, layerType: MapLayerType) {
-        const buttonEdit = document.createElement('div');
-
-        buttonEdit.className = 'leaflet-popup-control is-edit';
-        buttonEdit.addEventListener('click', () => {
-          if (this.map) {
-            this.map.fire(L.Draw.Event.EDITSTART, { layer, layerType });
-          }
-        });
-
-        return buttonEdit;
-      },
-      addHookHandlers() {
         if (!this.map) {
           return;
         }
 
-        this.map.on(L.Draw.Event.DRAWSTART, (event: L.LeafletEvent) => {
-          const { layerType } = (event as MapLeafletEvent);
+        this.map.pm.addControls({
+          position: ControlPosition.BOTTOMRIGHT,  
+          drawCircleMarker: false,
+          rotateMode: false,
+        })
+      },
+      // setDrawElementOptions(layerType: MapLayerType) {
+      //   const element = this.drawControlElementsMap[layerType];
+      //   const { buttonClass, tooltipTextKey } = DRAW_ELEMENT_OPTIONS[layerType];
 
-          if (layerType === MapLayerType.POLYGON) {
+      //   element.button = document.querySelector(`.${buttonClass}`);
+      //   element.tooltipContent = addTooltipToElement(element.button, String((tooltipTextKey)));
+      // },
+      // bindActionPopupToLayer(layer: MapLayer, actions: PopupAction[] = [PopupAction.EDIT, PopupAction.DELETE]) {
+      //   const layerType = getLayerType(layer);
+      //   const isMultiPolygon = layer.toGeoJSON().geometry.type === 'MultiPolygon';
+      //   const buttonContainer = document.createElement('div');
+      //   const buttons = [];
+
+      //   if (actions.indexOf(PopupAction.DELETE) > -1) {
+      //     buttons.push(this.makePopupDeleteButton(layer, layerType));
+      //   }
+
+      //   if (actions.indexOf(PopupAction.EDIT) > -1 && !isMultiPolygon) {
+      //     buttons.push(this.makePopupEditButton(layer, layerType));
+      //   }
+
+      //   buttonContainer.className = 'leaflet-popup-control-container';
+      //   buttons.forEach((button) => {
+      //     buttonContainer.appendChild(button);
+      //   });
+
+      //   const { popupClass } = DRAW_ELEMENT_OPTIONS[layerType];
+
+      //   layer.bindPopup(buttonContainer, { closeButton: false, closeOnClick: true, className: popupClass });
+      // },
+      // makePopupDeleteButton(layer: MapLayer, layerType: MapLayerType) {
+      //   const buttonRemove = document.createElement('div');
+
+      //   buttonRemove.className = 'leaflet-popup-control is-delete';
+      //   buttonRemove.addEventListener('click', () => {
+      //     if (this.map) {
+      //       this.map.fire(L.Draw.Event.DELETESTART, { layer, layerType });
+      //     }
+      //   });
+
+      //   return buttonRemove;
+      // },
+      // makePopupEditButton(layer: MapLayer, layerType: MapLayerType) {
+      //   const buttonEdit = document.createElement('div');
+
+      //   buttonEdit.className = 'leaflet-popup-control is-edit';
+      //   buttonEdit.addEventListener('click', () => {
+      //     if (this.map) {
+      //       this.map.fire(L.Draw.Event.EDITSTART, { layer, layerType });
+      //     }
+      //   });
+
+      //   return buttonEdit;
+      // },
+      addHookHandlers() {
+        if (!this.map) {
+          return;
+        }
+        
+        this.map.on("pm:remove",({ shape,layer }) => {
+          if (shape === MapLayerType.POLYGON) {
             this.isPolygonDrawingActive = true;
           }
-
-          this.setDrawingButtonActivity(layerType, true);
-
-          const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipCancelTextKey;
-
-          this.setDrawButtonTooltipText(layerType, String((textKey)));
-        });
-
-        this.map.on(L.Draw.Event.DRAWSTOP, (event: L.LeafletEvent) => {
-          const { layerType } = (event as MapLeafletEvent);
-
-          if (layerType === MapLayerType.POLYGON) {
-            this.isPolygonDrawingActive = false;
+          
+          this.finishLayerEditing();
+          // this.drawnItems.removeLayer(layer);
+          this.layerGroup.removeLayer(layer);
+          this.emitDrawnItemsGeolocation();
+        })
+        
+        this.map.on("pm:cut",({ shape,layer, originalLayer }) => {
+          if (shape === MapLayerType.POLYGON) {
+            this.isPolygonDrawingActive = true;
           }
-
-          this.setDrawingButtonActivity(layerType, false);
-
-          const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipTextKey;
-
-          this.setDrawButtonTooltipText(layerType, String((textKey)));
-        });
-
-        this.map.on(L.Draw.Event.CREATED, (event: L.LeafletEvent) => {
-          const { layer } = (event as MapDrawCreatedEvent);
-
-          this.drawnItems.addLayer(layer);
-          this.emitDrawnItemsGeolocation();
-          this.bindActionPopupToLayer(layer);
-        });
-
-        this.map.on(L.Draw.Event.EDITSTART, (event: L.LeafletEvent) => {
-          const { layer, layerType } = (event as MapDrawEditEvent);
-
-          layer.closePopup();
+          
           this.finishLayerEditing();
-          layer.editing.enable();
-          this.setDrawingButtonActivity(layerType, true);
-
-          const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipCancelTextKey;
-
-          this.setDrawButtonTooltipText(layerType, String((textKey)));
-          this.editingLayer = layer;
-          layer.unbindPopup();
-          this.bindActionPopupToLayer(layer, [PopupAction.DELETE]);
-        });
-
-        this.map.on(L.Draw.Event.EDITED, (event: L.LeafletEvent) => {
-          const { layer, layerType } = (event as MapDrawEditEvent);
-
-          this.setDrawingButtonActivity(layerType, false);
-
-          const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipTextKey;
-
-          this.setDrawButtonTooltipText(layerType, String((textKey)));
+          this.layerGroup.removeLayer(originalLayer);
+          this.layerGroup.addLayer(layer);
           this.emitDrawnItemsGeolocation();
-          layer.unbindPopup();
-          this.bindActionPopupToLayer(layer);
-        });
+        })
 
-        this.map.on(L.Draw.Event.DELETESTART, (event: L.LeafletEvent) => {
-          const { layer, layerType } = (event as MapDrawDeleteStartedEvent);
-
-          layer.closePopup();
-          this.finishLayerEditing();
-          this.setDrawingButtonActivity(layerType, false);
-          this.drawnItems.removeLayer(layer);
+        this.map.on("pm:create",({ layer }) => {
+          this.layerGroup.addLayer(layer);
           this.emitDrawnItemsGeolocation();
-        });
+        })
+
+       
+        // this.map.on(L.Draw.Event.DRAWSTART, (event: L.LeafletEvent) => {
+        //   const { layerType } = (event as MapLeafletEvent);
+
+        //   if (layerType === MapLayerType.POLYGON) {
+        //     this.isPolygonDrawingActive = true;
+        //   }
+
+        //   this.setDrawingButtonActivity(layerType, true);
+
+        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipCancelTextKey;
+
+        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
+        // });
+
+        // this.map.on(L.Draw.Event.DRAWSTOP, (event: L.LeafletEvent) => {
+        //   const { layerType } = (event as MapLeafletEvent);
+
+        //   if (layerType === MapLayerType.POLYGON) {
+        //     this.isPolygonDrawingActive = false;
+        //   }
+
+        //   this.setDrawingButtonActivity(layerType, false);
+
+        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipTextKey;
+
+        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
+        // });
+
+        // this.map.on(L.Draw.Event.CREATED, (event: L.LeafletEvent) => {
+        //   const { layer } = (event as MapDrawCreatedEvent);
+
+        //   this.drawnItems.addLayer(layer);
+        //   this.emitDrawnItemsGeolocation();
+        //   //this.bindActionPopupToLayer(layer);
+        // });
+
+        // this.map.on(L.Draw.Event.EDITSTART, (event: L.LeafletEvent) => {
+        //   const { layer, layerType } = (event as MapDrawEditEvent);
+
+        //   layer.closePopup();
+        //   this.finishLayerEditing();
+        //   layer.editing.enable();
+        //   this.setDrawingButtonActivity(layerType, true);
+
+        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipCancelTextKey;
+
+        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
+        //   this.editingLayer = layer;
+        //   layer.unbindPopup();
+        //   //this.bindActionPopupToLayer(layer, [PopupAction.DELETE]);
+        // });
+
+        // this.map.on(L.Draw.Event.EDITED, (event: L.LeafletEvent) => {
+        //   const { layer, layerType } = (event as MapDrawEditEvent);
+
+        //   this.setDrawingButtonActivity(layerType, false);
+
+        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipTextKey;
+
+        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
+        //   this.emitDrawnItemsGeolocation();
+        //   layer.unbindPopup();
+        //   //this.bindActionPopupToLayer(layer);
+        // });
+
+        // this.map.on(L.Draw.Event.DELETESTART, (event: L.LeafletEvent) => {
+        //   const { layer, layerType } = (event as MapDrawDeleteStartedEvent);
+
+        //   layer.closePopup();
+        //   this.finishLayerEditing();
+        //   this.setDrawingButtonActivity(layerType, false);
+        //   this.drawnItems.removeLayer(layer);
+        //   this.emitDrawnItemsGeolocation();
+        // });
 
         this.map.on('keydown', (e: L.LeafletEvent) => {
           const { originalEvent } = (e as LeafletKeyboardEvent);
@@ -436,14 +423,18 @@
         });
       },
       emitDrawnItemsGeolocation() {
-        const drawnItems = this.drawnItems.getLayers() as MapLayer[];
-        const geometries = drawnItems.map((layer) => layer.toGeoJSON().geometry);
+        const layerItems = this.layerGroup.getLayers() as MapLayer[];
+        const layerGeometries = this.getGeometries(layerItems);
+       
         const geolocation: GeoJSON.GeometryCollection = {
           type: 'GeometryCollection',
-          geometries,
+          geometries: layerGeometries,
         };
 
         this.$emit('input', geolocation?.geometries?.length ? geolocation : null);
+      },
+      getGeometries(geometry: MapLayer[]) {
+        return geometry.map((layer) => layer.toGeoJSON().geometry)
       },
       setDrawButtonTooltipText(layerType: MapLayerType, text: string) {
         const { tooltipContent } = this.drawControlElementsMap[layerType];
@@ -492,48 +483,17 @@
         const polygonHandler = L.toolbar._toolbars.draw._activeMode.handler;
         polygonHandler.completeShape();
       },
-      getColor(area :number) {
-        return area> 64 ? 'yellow' :
-           area> 32 ? 'violet' :
-           area> 16 ? 'indigo' :
-           area> 8  ? 'orange' :
-           area> 4  ? 'yellow' :
-           area> 2  ? 'red' :
-           area> 1  ? 'green' :
-           '#FFEDA0';
-      },
-      getStyle(feature: GeoJSON.Feature | any) {
-        return {
-          fillColor: this.getColor(feature.properties?.Flaeche),
-          weight: 2,
-          opacity: 1,
-          color: 'white',
-          dashArray: '3',
-          fillOpacity: 0.7
-        };
-      },
     },
   });
 </script>
 
 <style lang="scss">
   @import '@/styles/utilities/all';
-
-  $leaflet-popup-height: 36px;
-  $leaflet-popup-control-size: 20px;
-  $leaflet-popup-separator-width: 0.5px;
-  $leaflet-popup-content-wrapper-bottom-polygon: - ($leaflet-popup-height + 45px);
-  $leaflet-popup-content-wrapper-bottom-marker: - ($leaflet-popup-height + 60px);
-  $leaflet-popup-arrow-height: spacing-unit(3);
-  $leaflet-popup-arrow-width: spacing-unit(3);
-  $leaflet-popup-arrow-bottom-polygon: - ($leaflet-popup-height + 9px);
-  $leaflet-popup-arrow-bottom-marker: - ($leaflet-popup-height + 24px);
   
   .app-map {
     position: relative;
     height: 512px;
     width: 640px;
-    font-family: $font-primary;
 
     /* toolbar */
     .leaflet-pane {
@@ -573,304 +533,10 @@
       }
     }
 
-    .leaflet-draw {
-      margin-bottom: 0;
-    }
-
-    .leaflet-draw-toolbar {
-      margin-top: 0;
-      box-shadow: none;
-      display: flex;
-      flex-direction: column-reverse;
-
-      a {
-        margin-bottom: spacing-unit(2);
-        border-bottom: 0;
-        border-radius: $border-radius;
-        background: $color-white;
-        transition: background $transition-duration;
-      }
-
-      .leaflet-draw-draw-marker {
-        font-size: 0;
-        transition: background-color $transition-duration;
-
-        &::before {
-          @include background-svg-icon-fill('marker', $color-grey-darker);
-
-          transition: background-image $transition-duration;
-        }
-
-        &:hover {
-          &::before {
-            @include background-svg-icon-fill('marker', $color-primary);
-          }
-        }
-
-        &.is-active {
-          background-color: $color-blue;
-
-          &::before {
-            @include background-svg-icon-fill('marker', $color-white);
-          }
-        }
-
-        @include high-contrast {
-          &::before {
-            @include background-svg-icon-fill('marker', $color-white);
-          }
-
-          &:hover {
-            background-color: $color-white;
-
-            &::before {
-              @include background-svg-icon-fill('marker', $color-grey);
-            }
-          }
-
-          &:focus {
-            outline: 2px solid $color-primary;
-          }
-
-          &.is-active {
-            background-color: $color-grey-light;
-          }
-        }
-      }
-
-      .leaflet-draw-draw-polygon {
-        font-size: 0;
-        transition: background-color $transition-duration;
-
-        &::before {
-          @include background-svg-icon-fill('polygon', $color-grey-darker);
-
-          transition: background-image $transition-duration;
-        }
-
-        &:hover {
-          &::before {
-            @include background-svg-icon-fill('polygon', $color-primary);
-          }
-        }
-
-        &.is-active {
-          background-color: $color-blue;
-
-          &::before {
-            @include background-svg-icon-fill('polygon', $color-white);
-          }
-        }
-
-        @include high-contrast {
-          &::before {
-            @include background-svg-icon-fill('polygon', $color-white);
-          }
-
-          &:hover {
-            background-color: $color-white;
-
-            &::before {
-              @include background-svg-icon-fill('polygon', $color-grey);
-            }
-          }
-
-          &:focus {
-            outline: 2px solid $color-primary;
-          }
-
-          &.is-active {
-            background-color: $color-grey-light;
-          }
-        }
-      }
-
-      .leaflet-draw-edit-remove {
-        &::before {
-          @include background-svg-icon-fill('close', $color-white);
-        }
-      }
-
-      .leaflet-draw-edit-edit {
-        &::before {
-          @include background-svg-icon-fill('edit', $color-white);
-        }
-      }
-
-      .control-tooltip {
-        position: relative;
-        display: inline-flex;
-        cursor: default;
-        z-index: 2;
-
-        &:hover {
-          &::before,
-          .control-tooltip-content {
-            visibility: visible;
-            opacity: 1;
-          }
-        }
-
-        .control-tooltip-content {
-          @include apply-styles($text-body-small);
-
-          opacity: 0;
-          visibility: hidden;
-          position: absolute;
-          padding: spacing-unit(2) spacing-unit(3);
-          background: $color-grey-darker;
-          color: $color-white;
-          border-radius: $border-radius;
-          transition: $transition-duration;
-          white-space: nowrap;
-          right: spacing-unit(13);
-          bottom: 9px;
-          top: 1px;
-        }
-
-        &::before {
-          content: '';
-          position: absolute;
-          border-top: 12px solid $color-grey-darker;
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          visibility: hidden;
-          opacity: 0;
-          transition: $transition-duration;
-          bottom: 18px;
-          left: -16px;
-          transform: rotate(270deg);
-        }
-      }
-    }
-
-    // popup overrides
-    .leaflet-popup {
-      .leaflet-popup-content {
-        margin: 0;
-        padding: spacing-unit(2);
-        width: auto !important;
-      }
-
-      .leaflet-popup-content-wrapper {
-        position: absolute;
-        background: $color-white;;
-        bottom: calc(150%);
-        color: $color-white;
-        border-radius: $border-radius;
-        transition: $transition-duration;
-        padding: 0;
-        opacity: 1;
-        visibility: visible;
-        height: $leaflet-popup-height;
-        transform: translateX(-50%);
-      }
-
-      &.is-polygon {
-        .leaflet-popup-content-wrapper {
-          bottom: $leaflet-popup-content-wrapper-bottom-polygon;
-        }
-
-        .leaflet-popup-tip-container {
-          bottom: $leaflet-popup-arrow-bottom-polygon;
-        }
-      }
-
-      &.is-marker {
-        .leaflet-popup-content-wrapper {
-          bottom: $leaflet-popup-content-wrapper-bottom-marker;
-        }
-
-        .leaflet-popup-tip-container {
-          bottom: $leaflet-popup-arrow-bottom-marker;
-        }
-      }
-
-      .leaflet-popup-tip {
-        @include absolute-x-center;
-
-        width: auto;
-        height: auto;
-        margin: 0;
-        padding: 0;
-        border-top: 0;
-        border-bottom: $leaflet-popup-arrow-height solid $color-white;
-        border-left: $leaflet-popup-arrow-width / 2 solid transparent;
-        border-right: $leaflet-popup-arrow-width / 2 solid transparent;
-        box-shadow: none;
-        bottom: 0;
-        background: transparent;
-      }
-
-      .leaflet-popup-control {
-        width: $leaflet-popup-control-size;
-        height: $leaflet-popup-control-size;
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: contain;
-        cursor: pointer;
-        transition: background-image $transition-duration;
-
-        &.is-delete {
-          @include background-svg-icon-fill('close', $color-white);
-
-          &:hover {
-            @include background-svg-icon-fill('close', $color-grey);
-          }
-        }
-
-        &.is-edit {
-          @include background-svg-icon-fill('edit', $color-white);
-
-          &:hover {
-            @include background-svg-icon-fill('edit', $color-grey);
-          }
-        }
-
-        &-container {
-          display: flex;
-
-          .leaflet-popup-control {
-            position: relative;
-            margin-right: spacing-unit(4);
-
-            &::before {
-              content: '';
-              position: absolute;
-              width: $leaflet-popup-separator-width;
-              height: 24px;
-              background-color: $color-grey-dark;
-              top: -2px;
-              left: (-($leaflet-popup-control-size) / 2) + 1px;
-            }
-
-            &:last-child {
-              margin-right: 0;
-            }
-
-            &:first-child {
-              &::before {
-                content: none;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    .leaflet-popup-pane {
-      position: relative;
-    }
-
     .leaflet-draw-actions {
       display: none !important;
     }
-
-    .leaflet-bottom {
-      // decrease z-index due to resolve date-range picker overriding issue
-      z-index: 1;
-    }
-
+   
     .leaflet-bottom .leaflet-control-zoom {
       margin-bottom: spacing-unit(3);
     }

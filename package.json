@@ -12,6 +12,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@geoman-io/leaflet-geoman-free": "^2.14.2",
+    "@turf/turf": "^6.5.0",
     "D": "^1.0.0",
     "leaflet": "^1.9.3",
     "leaflet-draw": "^1.0.4",
