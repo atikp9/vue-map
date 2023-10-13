@@ -12,7 +12,6 @@
   import 'leaflet.markercluster';
   import type { GeoJSON } from 'geojson';
   import {
-    getLayerType,
     parseCollection,
   } from '@/common/utils/MapUtils';
   import {
@@ -51,6 +50,7 @@
     isPolygonDrawingActive: boolean;
     currentSearchString: string;
     layerGroup: L.LayerGroup;
+    showPopup: boolean
   }
 
   const OSM_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
@@ -84,7 +84,7 @@
       isFullScreen: {
         type: Boolean,
         default: false
-      }
+      },
     },
     data(): IMapData {
       return {
@@ -110,6 +110,7 @@
         },
         isPolygonDrawingActive: false,
         currentSearchString: '',
+        showPopup: true
       };
     },
     mounted() {
@@ -131,10 +132,14 @@
         this.setBaseControls();
         
         if (this.value) {
-          this.drawnItems = L.geoJSON(this.value, { pmIgnore: true});
+          this.drawnItems = L.geoJSON(this.value, 
+            { 
+              pmIgnore: true,
+              onEachFeature: this.bindPopup
+            }); 
           const bounds = this.drawnItems.getBounds();
           this.map.fitBounds(bounds);
-          this.drawnItems = parseCollection(this.drawnItems as any);
+          this.drawnItems = parseCollection(this.drawnItems as L.FeatureGroup);
         } else {
           this.setDefaultView();
         }
@@ -149,7 +154,7 @@
           className: this.isShapesInteractive ? INTERACTIVE_SHAPE_CLASS_NAME : '',
         });
 
-        this.map.addLayer(this.isMarkerClustering ? this.getClusteredShapes() : this.drawnItems as any);
+        this.map.addLayer(this.isMarkerClustering ? this.getClusteredShapes() : this.drawnItems as L.FeatureGroup);
       },
       setBaseControls() {
         if (!this.map) {
@@ -207,32 +212,18 @@
         this.getDrawToolbar();
         this.addHookHandlers();
       },
-      // extendDrawControlHandler() {
-      //   // eslint-disable-next-line @typescript-eslint/no-this-alias
-      //   const mapComponent = this;
-      //   // override leaflet method
-      //   L.Draw.Feature.include({
-      //     enable() {
-      //       if (mapComponent.editingLayer) {
-      //         mapComponent.finishLayerEditing();
-      //         return;
-      //       }
-
-      //       // eslint-disable-next-line no-underscore-dangle
-      //       if (this._enabled) {
-      //         // eslint-disable-next-line no-underscore-dangle
-      //         this._map.fire('draw:canceled', { layerType: this.type });
-      //         this.disable();
-      //         return;
-      //       }
-
-      //       L.Handler.prototype.enable.call(this);
-      //       this.fire('enabled', { handler: this.type });
-      //       // eslint-disable-next-line no-underscore-dangle
-      //       this._map.fire(L.Draw.Event.DRAWSTART, { layerType: this.type });
-      //     },
-      //   });
-      // },
+      bindPopup(feature: GeoJSON.Feature, layer: L.Layer) {
+        layer.on('click',() => {
+          //by default bind popup on each layer
+          if(this.showPopup) {
+            layer
+            .bindPopup('<h1> Tower id:'+feature.properties?.id+'</h1><p>Flaeche:&nbsp'+feature.properties?.Flaeche+'</p>')
+            .openPopup();
+          }else {
+            this.disableGeoJSONInteraction
+          }
+        })
+      },
       getDrawToolbar() {
         if (!this.map) {
           return;
@@ -242,175 +233,75 @@
           position: ControlPosition.BOTTOMRIGHT,  
           drawCircleMarker: false,
           rotateMode: false,
+          drawCircle: true,
+          cutPolygon: false,
+          drawPolyline: false,
+          drawText: false
         })
       },
-      // setDrawElementOptions(layerType: MapLayerType) {
-      //   const element = this.drawControlElementsMap[layerType];
-      //   const { buttonClass, tooltipTextKey } = DRAW_ELEMENT_OPTIONS[layerType];
-
-      //   element.button = document.querySelector(`.${buttonClass}`);
-      //   element.tooltipContent = addTooltipToElement(element.button, String((tooltipTextKey)));
-      // },
-      // bindActionPopupToLayer(layer: MapLayer, actions: PopupAction[] = [PopupAction.EDIT, PopupAction.DELETE]) {
-      //   const layerType = getLayerType(layer);
-      //   const isMultiPolygon = layer.toGeoJSON().geometry.type === 'MultiPolygon';
-      //   const buttonContainer = document.createElement('div');
-      //   const buttons = [];
-
-      //   if (actions.indexOf(PopupAction.DELETE) > -1) {
-      //     buttons.push(this.makePopupDeleteButton(layer, layerType));
-      //   }
-
-      //   if (actions.indexOf(PopupAction.EDIT) > -1 && !isMultiPolygon) {
-      //     buttons.push(this.makePopupEditButton(layer, layerType));
-      //   }
-
-      //   buttonContainer.className = 'leaflet-popup-control-container';
-      //   buttons.forEach((button) => {
-      //     buttonContainer.appendChild(button);
-      //   });
-
-      //   const { popupClass } = DRAW_ELEMENT_OPTIONS[layerType];
-
-      //   layer.bindPopup(buttonContainer, { closeButton: false, closeOnClick: true, className: popupClass });
-      // },
-      // makePopupDeleteButton(layer: MapLayer, layerType: MapLayerType) {
-      //   const buttonRemove = document.createElement('div');
-
-      //   buttonRemove.className = 'leaflet-popup-control is-delete';
-      //   buttonRemove.addEventListener('click', () => {
-      //     if (this.map) {
-      //       this.map.fire(L.Draw.Event.DELETESTART, { layer, layerType });
-      //     }
-      //   });
-
-      //   return buttonRemove;
-      // },
-      // makePopupEditButton(layer: MapLayer, layerType: MapLayerType) {
-      //   const buttonEdit = document.createElement('div');
-
-      //   buttonEdit.className = 'leaflet-popup-control is-edit';
-      //   buttonEdit.addEventListener('click', () => {
-      //     if (this.map) {
-      //       this.map.fire(L.Draw.Event.EDITSTART, { layer, layerType });
-      //     }
-      //   });
-
-      //   return buttonEdit;
-      // },
+      disableGeoJSONInteraction(e: L.LeafletEvent) {
+        (e as any).originalEvent.stopPropagation(); // Prevent event from propagating
+        (e as any).originalEvent.preventDefault(); // Prevent the default event behavior
+      },
       addHookHandlers() {
         if (!this.map) {
           return;
         }
         
-        this.map.on("pm:remove",({ shape,layer }) => {
-          if (shape === MapLayerType.POLYGON) {
-            this.isPolygonDrawingActive = true;
-          }
-          
-          this.finishLayerEditing();
-          // this.drawnItems.removeLayer(layer);
+        this.map.on("pm:drawstart",() => {
+          //disable popup on polygon edit mode
+          this.showPopup = false;
+        })
+        
+        this.map.on("pm:remove",({ layer }) => {
+          //this.showPopup = false
+          //this.drawnItems.bringToBack();// bring this layer to back to facilate polygon selection
+          //this.finishLayerEditing();
           this.layerGroup.removeLayer(layer);
           this.emitDrawnItemsGeolocation();
         })
         
-        this.map.on("pm:cut",({ shape,layer, originalLayer }) => {
-          if (shape === MapLayerType.POLYGON) {
-            this.isPolygonDrawingActive = true;
-          }
-          
-          this.finishLayerEditing();
+        //this event called when a shape cut toolbar option selected
+        this.map.on("pm:cut",({ layer, originalLayer }) => {
+          //this.showPopup = false;
+          //this.drawnItems.bringToBack();// bring this layer to back to facilate polygon selection
+          //this.finishLayerEditing();
           this.layerGroup.removeLayer(originalLayer);
           this.layerGroup.addLayer(layer);
           this.emitDrawnItemsGeolocation();
         })
 
+        // this.map.on('pm:edit',() =>{
+        //   this.showPopup = true;
+        // })
+
+        //this event called when a shape is drawn/finished
         this.map.on("pm:create",({ layer }) => {
+          this.showPopup = true; //set this flag to true after editing compelted
           this.layerGroup.addLayer(layer);
           this.emitDrawnItemsGeolocation();
+          //set draw layer to front to show popup
+          this.drawnItems.bringToFront();
         })
 
-       
-        // this.map.on(L.Draw.Event.DRAWSTART, (event: L.LeafletEvent) => {
-        //   const { layerType } = (event as MapLeafletEvent);
-
-        //   if (layerType === MapLayerType.POLYGON) {
-        //     this.isPolygonDrawingActive = true;
-        //   }
-
-        //   this.setDrawingButtonActivity(layerType, true);
-
-        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipCancelTextKey;
-
-        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
-        // });
-
-        // this.map.on(L.Draw.Event.DRAWSTOP, (event: L.LeafletEvent) => {
-        //   const { layerType } = (event as MapLeafletEvent);
-
-        //   if (layerType === MapLayerType.POLYGON) {
-        //     this.isPolygonDrawingActive = false;
-        //   }
-
-        //   this.setDrawingButtonActivity(layerType, false);
-
-        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipTextKey;
-
-        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
-        // });
-
-        // this.map.on(L.Draw.Event.CREATED, (event: L.LeafletEvent) => {
-        //   const { layer } = (event as MapDrawCreatedEvent);
-
-        //   this.drawnItems.addLayer(layer);
-        //   this.emitDrawnItemsGeolocation();
-        //   //this.bindActionPopupToLayer(layer);
-        // });
-
-        // this.map.on(L.Draw.Event.EDITSTART, (event: L.LeafletEvent) => {
-        //   const { layer, layerType } = (event as MapDrawEditEvent);
-
-        //   layer.closePopup();
-        //   this.finishLayerEditing();
-        //   layer.editing.enable();
-        //   this.setDrawingButtonActivity(layerType, true);
-
-        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipCancelTextKey;
-
-        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
-        //   this.editingLayer = layer;
-        //   layer.unbindPopup();
-        //   //this.bindActionPopupToLayer(layer, [PopupAction.DELETE]);
-        // });
-
-        // this.map.on(L.Draw.Event.EDITED, (event: L.LeafletEvent) => {
-        //   const { layer, layerType } = (event as MapDrawEditEvent);
-
-        //   this.setDrawingButtonActivity(layerType, false);
-
-        //   const textKey = DRAW_ELEMENT_OPTIONS[layerType].tooltipTextKey;
-
-        //   this.setDrawButtonTooltipText(layerType, String((textKey)));
-        //   this.emitDrawnItemsGeolocation();
-        //   layer.unbindPopup();
-        //   //this.bindActionPopupToLayer(layer);
-        // });
-
-        // this.map.on(L.Draw.Event.DELETESTART, (event: L.LeafletEvent) => {
-        //   const { layer, layerType } = (event as MapDrawDeleteStartedEvent);
-
-        //   layer.closePopup();
-        //   this.finishLayerEditing();
-        //   this.setDrawingButtonActivity(layerType, false);
-        //   this.drawnItems.removeLayer(layer);
-        //   this.emitDrawnItemsGeolocation();
-        // });
+        //on toolbar click hide popup
+        this.map.on("pm:buttonclick", () =>{
+          this.showPopup = false;
+          console.log('fired click', this.showPopup)
+          this.drawnItems.bringToBack();
+        })
+        
+        //on action completion show popup
+        this.map.on("pm:actionclick", () =>{
+          this.showPopup = true;
+          this.drawnItems.bringToFront();
+        })
 
         this.map.on('keydown', (e: L.LeafletEvent) => {
           const { originalEvent } = (e as LeafletKeyboardEvent);
 
           if (originalEvent.key === 'Escape') {
-            this.finishLayerEditing();
+            //this.finishLayerEditing();
           }
 
           if (originalEvent.key === 'Enter' && this.isPolygonDrawingActive) {
@@ -419,7 +310,7 @@
         });
 
         this.map.on('click', () => {
-          this.finishLayerEditing();
+          //this.finishLayerEditing();
         });
       },
       emitDrawnItemsGeolocation() {
@@ -431,7 +322,7 @@
           geometries: layerGeometries,
         };
 
-        this.$emit('input', geolocation?.geometries?.length ? geolocation : null);
+       this.$emit('input', geolocation?.geometries?.length ? geolocation : null);
       },
       getGeometries(geometry: MapLayer[]) {
         return geometry.map((layer) => layer.toGeoJSON().geometry)
@@ -442,38 +333,6 @@
         if (tooltipContent) {
           tooltipContent.textContent = text;
         }
-      },
-      setDrawingButtonActivity(layerType: MapLayerType, isActive: boolean) {
-        const buttonElement = this.drawControlElementsMap[layerType].button;
-        const className = 'is-active';
-
-        if (!buttonElement) {
-          return;
-        }
-
-        if (isActive) {
-          buttonElement.classList.add(className);
-          this.$emit('is-edit-map', true);
-
-          return;
-        }
-
-        buttonElement.classList.remove(className);
-        this.$emit('is-edit-map', false);
-      },
-      finishLayerEditing() {
-        if (!this.editingLayer) {
-          return;
-        }
-
-        this.editingLayer.editing.disable();
-        const layerType = getLayerType(this.editingLayer as any);
-
-        if (this.map) {
-          this.map.fire(L.Draw.Event.EDITED, { layerType, layer: this.editingLayer });
-        }
-
-        this.editingLayer = null;
       },
       completePolygon() {
         // here we need to access internal toolbar prop of Leaflet global object which is not described in interface
