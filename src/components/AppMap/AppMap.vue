@@ -254,7 +254,6 @@ export default defineComponent({
 
       this.map.on("pm:drawstart", ({ workingLayer}) => {
         //disable popup on polygon edit mode
-        workingLayer
         this.showPopup = false;
       })
 
