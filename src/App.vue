@@ -10,6 +10,7 @@
   </div>
 </template>
 <style lang="scss" scoped>
+
 .main-wrapper {
   height: 100vh;
   width: 100vw;

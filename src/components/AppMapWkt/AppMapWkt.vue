@@ -3,8 +3,7 @@
     class="app-map-wkt"
     v-bind="$attrs"
     :value="formattedValue"
-    @input="emitInput"
-    @is-edit-map="$emit('is-edit-map', $event)"
+    @input="$emit('input', $event)"
     @is-map-loaded="$emit('is-map-loaded', $event)"
   />
 </template>
@@ -14,7 +13,7 @@
   import { stringifyGeoJsonToWkt, parseWktToGeoJson } from '@/common/utils/MapUtils';
   import { computed } from 'vue';
   
-  const emit = defineEmits(['input','is-edit-map','is-map-loaded']);
+  const emit = defineEmits(['input','is-map-loaded']);
   
   export interface Props {
     value: string

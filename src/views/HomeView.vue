@@ -26,18 +26,27 @@
       </div>
       <br />
     </aside>
-    <AppMap 
+    <AppMapExtended 
       class="map-wrapper"
       :key="mapKey /* reinit map on demand when new data is appended */"
       v-model:has-draw="isPolygonControlVisible"
       v-model:is-full-screen="isFullScreenControlVisible"
     />
    
+    <!-- <AppMapWkt 
+      class="map-wrapper"
+      :key="mapKey /* reinit map on demand when new data is appended */"
+      :has-draw="true"
+      :is-full-screen="true"
+      @input="handleSelectedGeometry"
+    /> -->
   </div>
 </template>
 
 <script setup lang="ts">
   import AppMap from '@/components/AppMap/AppMap.vue';
+  import AppMapWkt from '@/components/AppMap/AppMap.vue';
+  import AppMapExtended from '@/components/AppMapExtended/AppMapExtended.vue';
   import { ref, watch } from 'vue'
   
   const isPolygonControlVisible = ref(false);
@@ -48,6 +57,9 @@
     mapKey.value += 1;
   }
 
+  const handleSelectedGeometry = (value:string | null) => {
+    console.log('<<>>',value)
+  }
   watch([isPolygonControlVisible, isFullScreenControlVisible] , () =>{
     updateMapKey();
   })
@@ -66,7 +78,7 @@
 
 .map-wrapper {
   width: 80%;
-  height: 100vh;
+  height: calc(100vh - 50px);
 }
 </style>
 ./geojson/germany.js
