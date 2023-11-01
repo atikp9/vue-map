@@ -8,12 +8,13 @@
         <pre>{{  tcids }}</pre>
       </div>
     </aside>
-    <AppMapWkt 
+    <AppMapComposition 
       class="map-wrapper"
       :key="mapKey /* reinit map on demand when new data is appended */"
       :has-draw="true"
       :is-full-screen="true"
       :value="geoJsonData"
+      :drawnItemsArray = "drawnItemsArray"
       :selected-layer="selectedLayer"
       @is-map-loaded="handleLoading"
       @input="handleSelectedGeometry"
@@ -22,8 +23,8 @@
 </template>
 
 <script setup lang="ts">
-  import AppMapWkt from '@/components/AppMap/AppMap.vue';
-  import { computed, ref } from 'vue';
+  import AppMapComposition from '@/components/AppMapComposition/AppMapComposition.vue';
+  import { ref } from 'vue';
   import { stringifyGeoJsonToWkt } from '@/common/utils/MapUtils';
   // @ts-ignore
   import { dt } from '@/geojson/germany'
@@ -33,10 +34,8 @@
   const mapKey = ref(0);
   const selectedLayer = ref<GeoJSON.GeometryCollection | null>(null);
   const tcids = ref<string[]>([]);
-
-  const updateMapKey = (): void => {
-    mapKey.value += 1;
-  }
+  const drawnItemsArray = ref<Number[]>([]);
+  
   const handleLoading = () => {
     isLoading.value = false;
   }
@@ -47,6 +46,7 @@
         "polygon": geometry
       }
 
+      //call BE API
       fetch('http://localhost:8080/dih-api/dih-geo-search/v2/search',
       {
         method: 'POST',
@@ -59,11 +59,13 @@
         selectedLayer.value = data;
         const result = data.map((dt: any) => dt.id);
         tcids.value = result;
+        drawnItemsArray.value = result;
       })
 
       return
     }
 
+    drawnItemsArray.value = [];
     tcids.value = [];
   }
 </script>
@@ -80,7 +82,7 @@
   }
   .map-wrapper {
     width: 80%;
-    height: 100vh;
+    height: calc(100vh - 50px);
   }
 }
 </style>

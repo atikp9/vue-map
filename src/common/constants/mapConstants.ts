@@ -54,6 +54,12 @@ export const POLYGON_SHAPE_OPTIONS: PathOptions = {
   fillOpacity: 0.25,
 };
 
+export const POLYGON_FILL_OPTIONS: L.PathOptions = {
+  color: 'rgba(226, 0, 116, 1.0)',
+  fillColor: '',
+  weight: 0.5
+}
+
 export const DRAW_ELEMENT_OPTIONS: {[k in MapLayerType]: MapDrawElementOptions} = {
   [MapLayerType.MARKER]: {
     buttonClass: 'leaflet-draw-draw-marker',
@@ -68,3 +74,13 @@ export const DRAW_ELEMENT_OPTIONS: {[k in MapLayerType]: MapDrawElementOptions} 
     popupClass: 'is-polygon',
   },
 };
+export interface GeoJSONFeature {
+  type: string;
+  id: number;
+  properties: Record<string, any>;
+  geometry: {
+      type: string;
+      coordinates: number[];
+  };
+}
+

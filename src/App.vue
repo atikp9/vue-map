@@ -1,8 +1,7 @@
 <template>
   <div class="main-wrapper">
     <div class="menu">
-      <router-link to="/">Home</router-link>
-      <router-link to="/wkt">GridLayer</router-link>
+      <router-link to="/">GridLayer</router-link>
     </div>
     <div class="map-wrapper">
       <router-view />
