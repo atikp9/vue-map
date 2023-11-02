@@ -1,6 +1,4 @@
 import L from 'leaflet';
-// fix issue with extended L.Control.DrawOptions
-import 'leaflet-draw';
 import { parse, stringify } from 'wellknown';
 import { MapLayerType, type MapLayer } from '@/common/types/MapTypes';
 import { POLYGON_SHAPE_OPTIONS } from '@/common/constants/mapConstants';

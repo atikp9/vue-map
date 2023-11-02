@@ -5,8 +5,6 @@
 <script setup lang="ts">
 import { onMounted, ref, nextTick, watch, type PropType } from 'vue'
 import 'leaflet.fullscreen'
-import 'leaflet-draw'
-import 'leaflet.markercluster'
 import { parseCollection } from '@/common/utils/MapUtils'
 import {
   ATTRIBUTION_OPTIONS,
